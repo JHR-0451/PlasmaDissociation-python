@@ -1,8 +1,10 @@
 # Changes in this fork (branch `jhr-developments`)
 
+Changes by Jonathan H Reid (University of Leeds), 2026, to the original code by R. Brook.
 Based on `RBrook318/PlasmaDissociation-python` `main` at `fbae5d8`. One entry per commit, oldest first.
-All new input keys are optional and default to the original behaviour (see the README section
-"Additional input options"). Old code replaced by the June and August fixes is kept as comments.
+All new input keys are optional and have defaults; with the defaults the code behaves as the original
+except where noted below (§4 frequency-job fix, §10 seeding). See the README section "Additional input
+options". Old code replaced by the June and August fixes is kept as comments.
 
 ## 1. Derivative-coupling input for more than two states (June 2026) – `code/qchem.py`
 Q-Chem expects the `$derivative_coupling` block to contain one line listing all states requested by
@@ -65,4 +67,10 @@ the trajectory output. Off by default.
   but not bit-identical to an unseeded run.
 
 ## 11. Documentation
-README section "Additional input options" and this file.
+README (new input options; setting up and running on the Leeds HPC) and this file.
+
+## 12. Example input
+`run/inputs.json` now uses the new options: CF4 at 5000 K with NIST geometry, Wigner sampling and
+ground-state pre-equilibration (0–400 steps), 10 repeats, fixed seeds. These are the settings of our CF4
+Wigner + GS-prep run, with the run-folder name and number of repeats changed. It replaces the previous
+methane example (still available in the history of `RBrook318/PlasmaDissociation-python`).

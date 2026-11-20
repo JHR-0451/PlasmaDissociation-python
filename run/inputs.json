@@ -1,19 +1,24 @@
 {
     "HPC":{
-        "Runfolder":"Methane-tests",
-        "repeats":1,
+        "Runfolder":"EXAMPLE-RUN",
+        "repeats":10,
         "cores":8,
         "initre":0,
         "hours": 48
     },
 
     "Molecule_data":{
-        "Geom_flg": "PubChem",
-        "Molecule":"Methane",
+        "Geom_flg": "NIST",
+        "NIST_CAS": "75-73-0",
+        "NIST_charge": 0,
+        "Molecule":"CF4",
         "States":1,
         "Multiplicity":3,
         "Start_State": 1,
         "Temp":5000,
+        "Init_cond":"wigner",
+        "Seed":20261122,
+        "Random_rotation":false,
         "Cutoff": 100,
         "Geom_file_start":1
     },
@@ -22,15 +27,29 @@
         "method": "QChem",
         "Spin_flip":0,
         "Basis":"6-31+G*",
-        "GPU": 0
+        "GPU": 0,
+        "Sym_ignore":true,
+        "Unrestricted":true,
+        "Sym_tol":5,
+        "Opt_sym_ignore":false,
+        "Opt_sym_tol":5,
+        "Opt_geom_symflag":true,
+        "Use_integral_symmetry":true
     },
 
     "Propagation":{
         "Branches":0,
         "Timestep":10,
-        "Tot_timesteps":2100,
+        "Tot_timesteps":620,
         "Checks": 2,
-        "Remove_atoms": 1
+        "Remove_atoms": 1,
+        "GS_prep":{
+            "Enabled":true,
+            "Multiplicity":1,
+            "Min_steps":0,
+            "Max_steps":400,
+            "Seed":20261123
+        }
     }
 
 }

@@ -3,13 +3,15 @@
 Fork of [RBrook318/PlasmaDissociation-python](https://github.com/RBrook318/PlasmaDissociation-python):
 Python code for simulating molecular dissociation after electron impact, with forces from Q-Chem (or PySCF).
 Runs are configured with `run/inputs.json` and submitted with `run/run.py`.
+Original code by R. Brook; the changes in this fork are by Jonathan H Reid (University of Leeds), 2026.
 This fork (branch `jhr-developments`) adds the optional input options below; see `CHANGES.md` for the full
 list of changes.
 
 ## Additional input options
 
-All options below are optional. Every new key has a default that reproduces the original behaviour,
-so an existing `inputs.json` runs unchanged. See `CHANGES.md` for what changed in each commit and why.
+All options below are optional and every new key has a default, so an `inputs.json` without the new keys
+still runs. With the defaults the code behaves as the original, except where `CHANGES.md` says otherwise
+(notably the frequency-job symmetry fix, §4, and the always-logged seed, §10).
 
 ### `Elec_structure`: Q-Chem symmetry and spin settings
 
@@ -57,22 +59,11 @@ scratch at the new geometry, and the clock is reset to t = 0. Prep steps are not
 outputs. The prep runs only for a new trajectory, never on a restart.
 If `Enabled` is true, a missing `Multiplicity`, `Min_steps` or `Max_steps` stops the run with a `KeyError`.
 
-### Example (`inputs.json` excerpt)
+### Example
 
-```json
-"Molecule_data": {
-    "Geom_flg": "NIST", "Molecule": "CF4", "NIST_CAS": "75-73-0", "NIST_charge": 0,
-    "Init_cond": "wigner", "Seed": 12345, "Random_rotation": false
-},
-"Elec_structure": {
-    "Sym_ignore": true, "Unrestricted": true, "Sym_tol": 5, "Use_integral_symmetry": true,
-    "Opt_sym_ignore": true, "Opt_sym_tol": 5, "Opt_geom_symflag": true
-},
-"Propagation": {
-    "GS_prep": {"Enabled": true, "Multiplicity": 1, "Min_steps": 0, "Max_steps": 400, "Seed": 67890}
-}
-```
-(Other existing keys in each block are unchanged and omitted here.)
+`run/inputs.json` is a complete working example using these options (CF4 at 5000 K, NIST geometry,
+Wigner sampling, ground-state prep, 10 repeats); edit it for your own runs. It sets `Opt_sym_ignore: false`
+(the setting used for our CF4 Wigner + GS-prep run), not the default `true`.
 
 ### New output files
 

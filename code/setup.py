@@ -218,6 +218,10 @@ if __name__ == "__main__":
         inputs=json.load(f)
     if inputs["Molecule_data"]["Geom_flg"] == "PubChem":
         symbols,coordinates = get_geometry_pubchem(inputs["Molecule_data"]["Molecule"])
+    elif inputs["Molecule_data"]["Geom_flg"] == "NIST":
+        from nist_geometry import get_geometry_nist
+        symbols, coordinates = get_geometry_nist(inputs["Molecule_data"])
+        generate_bondarr(symbols, coordinates)
     elif inputs["Molecule_data"]["Geom_flg"] == "Initial":
         symbols,coordinates = get_geometry_file()
         generate_bondarr(symbols, coordinates)

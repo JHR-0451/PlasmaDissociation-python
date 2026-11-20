@@ -25,6 +25,17 @@ if __name__=="__main__":
     with open('inputs.json') as f:
         inputs=json.load(f)
 
+    # Validate NIST selection before creating folders or submitting any jobs.
+    if inputs["Molecule_data"]["Geom_flg"] == "NIST":
+        from pathlib import Path
+        code_dir = Path(__file__).resolve().parents[1] / "code"
+        sys.path.insert(0, str(code_dir))
+        from nist_geometry import validate_nist_request
+        validate_nist_request(
+            inputs["Molecule_data"].get("NIST_CAS", ""),
+            inputs["Molecule_data"].get("NIST_charge", 0),
+        )
+
     #Check basic arguements
     if(isinstance(inputs["HPC"]["repeats"],int)==False):
         sys.exit("Number of repeats must be an integer")
@@ -109,7 +120,7 @@ if __name__=="__main__":
     EXDIR1=os.getcwd()
     if HPCFLG == "arc":
         # Makes Job Submission sctipt for initial setup
-        if inputs["Molecule_data"]["Geom_flg"] in ["PubChem", "Initial"]:
+        if inputs["Molecule_data"]["Geom_flg"] in ["PubChem", "NIST", "Initial"]:
             file2="Setup_"+inputs["HPC"]["Runfolder"]+".sh"
             f=open(file2,"w")
             f.write("#$ -cwd -V \n")
@@ -192,7 +203,7 @@ if __name__=="__main__":
             subprocess.call(command)
     elif HPCFLG == "aire":
     # AIRE job submission script
-        if inputs["Molecule_data"]["Geom_flg"] in ["PubChem", "Initial"]:
+        if inputs["Molecule_data"]["Geom_flg"] in ["PubChem", "NIST", "Initial"]:
             file2 = "Setup_" + inputs["HPC"]["Runfolder"] + ".sh"
             with open(file2, "w") as f:
                 f.write("#!/bin/bash\n")
@@ -241,7 +252,7 @@ if __name__=="__main__":
         f.write("cd "+EXDIR1+"/repetitions/rep-$SLURM_ARRAY_TASK_ID \n")
         f.write("python /users/"+getpass.getuser()+"/PlasmaDissociation-python/code/main.py")
         f.close()
-        if inputs["Molecule_data"]["Geom_flg"] in ["PubChem", "Initial"]:
+        if inputs["Molecule_data"]["Geom_flg"] in ["PubChem", "NIST", "Initial"]:
             plasma_command = ['sbatch', '--dependency=afterok:' + setup_job_id, file1]
             subprocess.call(plasma_command)
         elif inputs["Molecule_data"]["Geom_flg"] in ["Full"]:

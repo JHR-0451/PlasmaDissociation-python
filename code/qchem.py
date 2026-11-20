@@ -120,7 +120,27 @@ def create_qchem_nac_input(molecule, scf_algorithm="DIIS", Guess=True):
 
     
     # Get the Q-Chem input file content
-    qc_content = qc_inp.get_txt().splitlines()  
+    #qc_content = qc_inp.get_txt().splitlines()  
+
+    # Modify the content if Guess is True
+    #if Guess:
+       # for idx, line in enumerate(qc_content):
+           # if "scf_algorithm" in line:
+               # qc_content.insert(idx + 1, "SCF_GUESS           Read")
+               # break  # Stop after inserting once    
+    # Write the modified content back
+   # with open("ec.inp", "w") as f:
+       # f.write("\n".join(qc_content) + "\n")  # Ensure newlines are preserved
+       # f.write("\n$derivative_coupling\n")
+       # f.write("comment\n")
+       # for i in range(1, gv.num_states + 1):
+        #    for j in range(i + 1, gv.num_states + 1):
+        #        f.write(f"{i} {j}\n")
+       # f.write("$end\n")
+
+   # return qc_inp
+    # Get the Q-Chem input file content
+    qc_content = qc_inp.get_txt().splitlines()
 
     # Modify the content if Guess is True
     if Guess:
@@ -132,12 +152,37 @@ def create_qchem_nac_input(molecule, scf_algorithm="DIIS", Guess=True):
     # Write the modified content back
     with open("ec.inp", "w") as f:
         f.write("\n".join(qc_content) + "\n")  # Ensure newlines are preserved
-        f.write("\n$derivative_coupling\n")
-        f.write("comment\n")
-        for i in range(1, gv.num_states + 1):
-            for j in range(i + 1, gv.num_states + 1):
-                f.write(f"{i} {j}\n")
-        f.write("$end\n")
+
+        # DERIVATIVE COUPLING FORMAT FIX
+        # Date: 2026-06-03
+        #
+        # Q-Chem expects the $derivative_coupling block to contain ONE line
+        # listing all states requested by CIS_DER_NUMSTATE.
+        #
+        # For gv.num_states = 3, Q-Chem expects:
+        #
+        # $derivative_coupling
+        # comment
+        # 1 2 3
+        # $end
+        #
+        # The previous implementation wrote pairwise state combinations on
+        # separate lines. That accidentally worked for gv.num_states = 2,
+        # because there is only one pair, but fails for gv.num_states = 3.
+        if gv.num_states > 1:
+            f.write("\n$derivative_coupling\n")
+            f.write("comment\n")
+            f.write(" ".join(str(i) for i in range(1, gv.num_states + 1)) + "\n")
+            f.write("$end\n")
+
+        # ORIGINAL IMPLEMENTATION — kept for easy reversal:
+        #
+        # f.write("\n$derivative_coupling\n")
+        # f.write("comment\n")
+        # for i in range(1, gv.num_states + 1):
+        #     for j in range(i + 1, gv.num_states + 1):
+        #         f.write(f"{i} {j}\n")
+        # f.write("$end\n")
 
     return qc_inp
 

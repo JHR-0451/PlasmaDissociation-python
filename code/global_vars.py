@@ -10,6 +10,10 @@ method = None
 spin_flip = None
 basis = None
 gpu = None
+sym_ignore = True
+unrestricted = True
+sym_tol = 5
+use_integral_symmetry = True
 branches = None
 timestep = None
 tot_timesteps = None
@@ -18,8 +22,8 @@ remove_atoms = None
 
 # Function to load variables from JSON file
 def load_global_variables():
-    global cores,num_states, multiplicity, start_state
-    global method, spin_flip, basis, gpu
+    global cores, num_states, multiplicity, start_state
+    global method, spin_flip, basis, gpu, sym_ignore, unrestricted, sym_tol, use_integral_symmetry
     global branches, timestep, tot_timesteps, checks, remove_atoms
     dir = os.getcwd()
     print(dir)
@@ -39,6 +43,10 @@ def load_global_variables():
     spin_flip = inputs["Elec_structure"]["Spin_flip"]
     basis = inputs["Elec_structure"]["Basis"]
     gpu = inputs["Elec_structure"]["GPU"]
+    sym_ignore = inputs["Elec_structure"].get("Sym_ignore", True)
+    use_integral_symmetry = inputs["Elec_structure"].get("Use_integral_symmetry", True)
+    unrestricted = inputs["Elec_structure"].get("Unrestricted", True)
+    sym_tol = inputs["Elec_structure"].get("Sym_tol", 5)
     
     branches = inputs["Propagation"]["Branches"]
     timestep = inputs["Propagation"]["Timestep"]

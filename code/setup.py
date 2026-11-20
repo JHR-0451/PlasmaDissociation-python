@@ -35,6 +35,53 @@ def create_geom(n,nmod,T,modes,m,mom_num):
     
     return Px, Py, Pz
 
+
+def create_wigner(n, nmod, T, modes, freqs_cm, m, mom_num, rng):
+    """Thermal (harmonic) Wigner sampling of positions AND momenta, per normal mode.
+
+    All atomic units (hbar = 1): masses in m_e (init.setup_masses), coordinates in bohr.
+    For a mode with Cartesian displacement vector A (any normalisation), q is the coordinate along A:
+    x = x_eq + A q,  Meff = sum_j m_j |A_j|^2,  KE = Meff qdot^2 / 2,  PE = Meff w^2 q^2 / 2.
+    Thermal Wigner function of a harmonic oscillator = Gaussian in q and qdot with
+        var(q)    = coth(w / 2kT) / (2 Meff w)
+        var(qdot) = coth(w / 2kT) * w / (2 Meff)
+    -> mean KE = mean PE = (w/4) coth(w/2kT); mean E = (w/2) coth(w/2kT); T = 0 gives zero-point sampling.
+    Returns dX, dY, dZ (bohr displacements from the optimised geometry) and Px, Py, Pz, each (n, mom_num).
+    """
+    Ax = modes[:, 0].reshape(n, nmod, order='F')
+    Ay = modes[:, 1].reshape(n, nmod, order='F')
+    Az = modes[:, 2].reshape(n, nmod, order='F')
+    w = np.asarray(freqs_cm, dtype=float) / 219474.6313632     # cm^-1 -> Hartree
+    if np.any(w <= 0):
+        raise ValueError(f"non-positive frequency in Wigner sampling: {freqs_cm}")
+    kT = T * 0.0000031668                                        # same K -> Hartree factor as create_geom
+    coth = 1.0 / np.tanh(w / (2 * kT)) if kT > 0 else np.ones_like(w)
+    Meff = np.sum(m[:, None] * (Ax**2 + Ay**2 + Az**2), axis=0)  # (nmod,)
+    sq = np.sqrt(coth / (2 * Meff * w))
+    sv = np.sqrt(coth * w / (2 * Meff))
+    q = rng.standard_normal((nmod, mom_num)) * sq[:, None]
+    v = rng.standard_normal((nmod, mom_num)) * sv[:, None]
+    dX, dY, dZ = Ax @ q, Ay @ q, Az @ q
+    Px, Py, Pz = m[:, None] * (Ax @ v), m[:, None] * (Ay @ v), m[:, None] * (Az @ v)
+    return dX, dY, dZ, Px, Py, Pz
+
+
+def wigner_checks(dX, dY, dZ, Px, Py, Pz, m, T, freqs_cm, output_file="wigner_checks.txt"):
+    """Write sample-mean KE and its expected value; harmonic PE needs the Hessian, so only KE is checked here."""
+    w = np.asarray(freqs_cm, dtype=float) / 219474.6313632
+    kT = T * 0.0000031668
+    coth = 1.0 / np.tanh(w / (2 * kT)) if kT > 0 else np.ones_like(w)
+    ke = 0.5 * np.sum((Px**2 + Py**2 + Pz**2) / m[:, None], axis=0)
+    disp = np.sqrt(dX**2 + dY**2 + dZ**2)
+    with open(output_file, "w") as f:
+        f.write(f"Thermal Wigner sampling, T = {T} K, {Px.shape[1]} samples\n")
+        f.write("Frequencies (cm^-1): " + " ".join(f"{x:.2f}" for x in freqs_cm) + "\n")
+        f.write(f"Expected mean KE (sum w/4 coth): {np.sum(w / 4 * coth):.6f} Ha\n")
+        f.write(f"Sample mean KE: {ke.mean():.6f} Ha (std {ke.std():.6f})\n")
+        f.write(f"Expected mean vib. energy (sum w/2 coth): {np.sum(w / 2 * coth):.6f} Ha\n")
+        f.write("RMS displacement per atom (bohr): " + " ".join(f"{x:.4f}" for x in np.sqrt((disp**2).mean(1))) + "\n")
+
+
 def get_geometry_file():
 
     symbols = []
@@ -238,15 +285,39 @@ if __name__ == "__main__":
     
    
     modes = modes['modes']
+    modes_raw = modes                     # keep the parsed dicts (frequencies) for Wigner sampling
     num_modes = len(modes)
     natoms = int((num_modes+6)/3)
     modes=organise_modes(modes,natoms)
     masses = init.setup_masses(symbols)
-    Px, Py, Pz = create_geom(natoms,num_modes,inputs["Molecule_data"]["Temp"],modes,masses,inputs["HPC"]["repeats"])
-    momenta_checks(Px,Py,Pz,symbols,inputs["Molecule_data"]["Temp"])
-    for j in range(inputs["HPC"]["repeats"]):
+    # Initial-condition sampling. "Init_cond" absent or "classical" = original behaviour (unchanged code path).
+    init_cond = inputs["Molecule_data"].get("Init_cond", "classical").lower()
+    seed = inputs["Molecule_data"].get("Seed")              # optional int; absent = unseeded, as before
+    T_in = inputs["Molecule_data"]["Temp"]
+    nrep = inputs["HPC"]["repeats"]
+    if init_cond == "classical":
+        if seed is not None:
+            np.random.seed(int(seed))
+        Px, Py, Pz = create_geom(natoms,num_modes,T_in,modes,masses,nrep)
+        momenta_checks(Px,Py,Pz,symbols,T_in)
+        rep_coords = [opt_coords] * nrep
+    elif init_cond == "wigner":
+        freqs = [float(md['frequency']) for md in modes_raw]
+        rng = np.random.default_rng(None if seed is None else int(seed))
+        dX, dY, dZ, Px, Py, Pz = create_wigner(natoms,num_modes,T_in,modes,freqs,masses,nrep,rng)
+        wigner_checks(dX, dY, dZ, Px, Py, Pz, masses, T_in, freqs)
+        eq_lines = [ln.split() for ln in opt_coords.strip().splitlines()]
+        eq_sym = [p[0] for p in eq_lines]
+        eq_xyz = np.array([[float(x) for x in p[1:4]] for p in eq_lines])
+        rep_coords = []
+        for j in range(nrep):
+            xyz = eq_xyz + np.stack([dX[:, j], dY[:, j], dZ[:, j]], axis=1)
+            rep_coords.append("".join(f"{s} {float(x)!r} {float(y)!r} {float(z)!r} \n" for s, (x, y, z) in zip(eq_sym, xyz)))
+    else:
+        raise ValueError(f"Unknown Molecule_data.Init_cond: {init_cond!r} (use 'classical' or 'wigner')")
+    for j in range(nrep):
         with open('../repetitions/rep-'+str(j+1)+'/Geometry', 'w') as file:
-            file.write(opt_coords)
+            file.write(rep_coords[j])
             file.write("momentum\n")
             # Write Px, Py, and Pz for each atom on the same line
             for atom in range(natoms):

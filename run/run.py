@@ -2,6 +2,7 @@
 #
 #   Python Run script for the submission of dissociation after electron impact
 #   Written by R Brook                                                 26.07.23
+#   Modified by J Reid (To include Calder support)                     23.10.26
 #   Inspired heavily by Oliver Bramley's run script for MCE/CCS
 # 
 #   Written to make submission of jobs to the HPC easier and quicker
@@ -63,6 +64,8 @@ if __name__=="__main__":
         HPCFLG = "arc"
     elif "aire" in hostname:
         HPCFLG = "aire"
+    elif "calder" in hostname:
+        HPCFLG = "calder"
 
     print(f"HPCFLG: {HPCFLG}")
 
@@ -79,6 +82,10 @@ if __name__=="__main__":
         EXDIR="/mnt/scratch/"+getpass.getuser()
         if not os.path.exists(EXDIR):
             os.mkdir(EXDIR)
+    elif HPCFLG == "calder":
+        EXDIR = "/scratch-calder/users/"+ getpass.getuser()
+        if not os.path.isdir(EXDIR):
+            raise RuntimeError(f"Calder scratch directory unavailable: {EXDIR}")
     
     if os.path.exists(EXDIR+"/"+inputs["HPC"]["Runfolder"]):
         value=input("File already exists do you want to delete it? y/n\n")
@@ -201,7 +208,7 @@ if __name__=="__main__":
             f.close()
             command = ['qsub','-N','Plasma_'+inputs["HPC"]["Runfolder"]+'_'+str(i+2), '-hold_jid', 'Plasma_'+inputs["HPC"]["Runfolder"]+'_'+str(i+1), file1]
             subprocess.call(command)
-    elif HPCFLG == "aire":
+    elif HPCFLG in ( "aire", "calder"):
     # AIRE job submission script
         if inputs["Molecule_data"]["Geom_flg"] in ["PubChem", "NIST", "Initial"]:
             file2 = "Setup_" + inputs["HPC"]["Runfolder"] + ".sh"
@@ -213,9 +220,15 @@ if __name__=="__main__":
                 f.write("#SBATCH --cpus-per-task=" + str(inputs["HPC"]["cores"]) + "\n")
                 if inputs["Elec_structure"]["method"] == "QChem":
                     f.write("export LM_LICENSE_FILE=27000@uol-lnx-lic01.leeds.ac.uk\n")
-                    f.write("mkdir $TMPDIR/qchemlocal\n")
-                    f.write("tar -xzvf /users/" + getpass.getuser() + "/qchem.tar.gz -C $TMPDIR/qchemlocal\n")
-                    f.write('qchemlocal=$TMPDIR/qchemlocal\n')
+                    if HPCFLG == "calder":
+                        f.write('set -e\n')
+                        f.write('qchemlocal=$(mktemp -d "${TMPDIR:-/tmp}/qchem-${SLURM_JOB_ID}-XXXXXX")\n')
+                        f.write('trap \'rm -rf -- "$qchemlocal"\' EXIT\n')
+                        f.write('tar -xzf /users/' + getpass.getuser() + '/qchem.tar.gz -C "$qchemlocal"\n')
+                    else:
+                        f.write("mkdir $TMPDIR/qchemlocal\n")
+                        f.write("tar -xzvf /users/" + getpass.getuser() + "/qchem.tar.gz -C $TMPDIR/qchemlocal\n")
+                        f.write('qchemlocal=$TMPDIR/qchemlocal\n')
                     f.write('export QCHEM_HOME="$qchemlocal"\n')
                     f.write('export QC="$qchemlocal"\n')
                     f.write('export QCAUX="$QC/qcaux"\n')
@@ -239,9 +252,15 @@ if __name__=="__main__":
         f.write("#SBATCH --array=1-"+str(inputs["HPC"]["repeats"])+" \n")
         if(inputs["Elec_structure"]["method"]=="QChem"):
             f.write("export LM_LICENSE_FILE=27000@uol-lnx-lic01.leeds.ac.uk\n")
-            f.write("mkdir $TMPDIR/qchemlocal\n")
-            f.write("tar -xzvf /users/" + getpass.getuser() + "/qchem.tar.gz -C $TMPDIR/qchemlocal\n")
-            f.write('qchemlocal=$TMPDIR/qchemlocal\n')
+            if HPCFLG == "calder":
+                f.write('set -e\n')
+                f.write('qchemlocal=$(mktemp -d "${TMPDIR:-/tmp}/qchem-${SLURM_JOB_ID}-XXXXXX")\n')
+                f.write('trap \'rm -rf -- "$qchemlocal"\' EXIT\n')
+                f.write('tar -xzf /users/' + getpass.getuser() + '/qchem.tar.gz -C "$qchemlocal"\n')
+            else:
+                f.write("mkdir $TMPDIR/qchemlocal\n")
+                f.write("tar -xzvf /users/" + getpass.getuser() + "/qchem.tar.gz -C $TMPDIR/qchemlocal\n")
+                f.write('qchemlocal=$TMPDIR/qchemlocal\n')
             f.write('export QCHEM_HOME="$qchemlocal"\n')
             f.write('export QC="$qchemlocal"\n')
             f.write('export QCAUX="$QC/qcaux"\n')

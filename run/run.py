@@ -246,10 +246,10 @@ if __name__=="__main__":
         f=open(file1,"w")
         f.write("#!/bin/bash\n")
         f.write("#SBATCH --job-name=Plasma_"+inputs["HPC"]["Runfolder"]+"_1 \n")
-        f.write("#SBATCH --mem=1G\n")
+        f.write("#SBATCH --mem=4G\n")
         f.write("#SBATCH --time="+str(inputs["HPC"]["hours"])+":00:00\n")
         f.write("#SBATCH --cpus-per-task="+str(inputs["HPC"]["cores"])+" \n")
-        f.write("#SBATCH --array=1-"+str(inputs["HPC"]["repeats"])+" \n")
+        f.write("#SBATCH --array=1-"+str(inputs["HPC"]["repeats"])+"%100  \n")
         if(inputs["Elec_structure"]["method"]=="QChem"):
             f.write("export LM_LICENSE_FILE=27000@uol-lnx-lic01.leeds.ac.uk\n")
             if HPCFLG == "calder":

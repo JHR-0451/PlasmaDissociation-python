@@ -488,26 +488,74 @@ def readqchemnac(filename, molecule):
     - Ensures the extracted data is correctly reshaped to (natoms, 3).
     """
 
+   # natoms = sum(flag.lower() != 'yes' for flag in molecule.dissociation_flags)
+   # coupling_data = []
+   # found_coupling = False
+   # with open(filename, 'r') as f:
+   #     for line in f:
+   #         if "SF-CIS derivative coupling with ETF" in line:
+   #             found_coupling = True
+   #             next(f)  # Skip the header line
+   #             next(f)
+   #             continue
+   #         
+   #         if found_coupling:
+   #             if line.strip() == "":
+   #                 break  # Stop at an empty line
+   #             parts = line.split()
+   #             if len(parts) == 4:  # Expecting format: atom_index x y z
+   #                 _, x, y, z = parts
+   #                 coupling_data.append([float(x), float(y), float(z)])
     natoms = sum(flag.lower() != 'yes' for flag in molecule.dissociation_flags)
     coupling_data = []
     found_coupling = False
 
+    # Valid derivative-coupling state pairs for the requested state manifold.
+    # Q-Chem labels these as "between states i and j".
+    # Start_State controls the initially populated state; it should not decide
+    # which NAC block labels are valid in the Q-Chem output.
+    valid_pairs = {
+        (i, j)
+        for i in range(1, gv.num_states + 1)
+        for j in range(i + 1, gv.num_states + 1)
+    }
+
+    found_target_pair = False   
+
     with open(filename, 'r') as f:
         for line in f:
-            if "SF-CIS derivative coupling with ETF" in line:
-                found_coupling = True
-                next(f)  # Skip the header line
-                next(f)
+            stripped = line.strip()
+
+            if stripped.startswith("between states"):
+                parts = stripped.split()
+                try:
+                    pair = (int(parts[2]), int(parts[4]))
+                except (IndexError, ValueError):
+                    continue
+
+                found_target_pair = pair in valid_pairs
                 continue
-            
+
+            if found_target_pair and "SF-CIS derivative coupling with ETF" in line:
+                found_coupling = True
+                next(f)  # Atom X Y Z header
+                next(f)  # dashed line
+                continue
+
             if found_coupling:
-                if line.strip() == "":
-                    break  # Stop at an empty line
+                if len(coupling_data) == natoms:
+                    break
+
                 parts = line.split()
-                if len(parts) == 4:  # Expecting format: atom_index x y z
+
+                if len(parts) != 4:
+                    continue
+
+                try:
                     _, x, y, z = parts
                     coupling_data.append([float(x), float(y), float(z)])
-
+                except ValueError:
+                    continue
     if not found_coupling:
         raise ValueError("SF-CIS derivative coupling section not found in the output.")
 

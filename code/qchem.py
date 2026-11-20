@@ -578,7 +578,7 @@ def readqchemnac(filename, molecule):
 
     return coupling_array
 
-def initial_conditions(symbols,coords,cores,basis):
+def initial_conditions(symbols,coords,cores,basis, opt_sym_ignore=True, opt_sym_tol=5, opt_geom_symflag=True):
     """
     Generates initial conditions for a molecule by optimizing its geometry 
     and calculating vibrational modes using QChem.
@@ -614,9 +614,12 @@ def initial_conditions(symbols,coords,cores,basis):
                         basis=basis,
                         unrestricted=True,
                         max_scf_cycles=500,
-                        sym_ignore=True,
+                        sym_ignore=opt_sym_ignore,
+                        sym_tol=opt_sym_tol,
                         scf_algorithm='diis',
-                        extra_rem_keywords={'input_bohr':'true'}
+                        extra_rem_keywords={'input_bohr':'true',
+                                            'geom_opt_symflag':'true' if opt_geom_symflag else 'false'
+                        }
                         )
     
     output = get_output_from_qchem(qc_inp,processors=cores)
@@ -634,6 +637,8 @@ def initial_conditions(symbols,coords,cores,basis):
                         jobtype='FREQ',
                         exchange='BHHLYP',
                         basis=basis,
+                        sym_ignore=opt_sym_ignore,
+                        sym_tol=opt_sym_tol,
                         extra_rem_keywords={'input_bohr':'true'}
                         )
     output = get_output_from_qchem(qc_inp,cores)

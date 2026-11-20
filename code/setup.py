@@ -223,7 +223,11 @@ if __name__ == "__main__":
         generate_bondarr(symbols, coordinates)
     if inputs["Elec_structure"]["method"] == "QChem":
         import qchem as qc
-        opt_coords, modes = qc.initial_conditions(symbols,coordinates,inputs['HPC']['cores'], inputs['Elec_structure']['Basis'])
+        opt_coords, modes = qc.initial_conditions(symbols,coordinates,inputs['HPC']['cores'], inputs['Elec_structure']['Basis'],
+    opt_sym_ignore=inputs["Elec_structure"].get("Opt_sym_ignore", True),
+    opt_sym_tol=inputs["Elec_structure"].get("Opt_sym_tol", 5),
+    opt_geom_symflag=inputs["Elec_structure"].get("Opt_geom_symflag", True)
+    )
     elif inputs["Elec_structure"]["method"] == "PySCF":
         import elec_pyscf as pyscf
         pyscf.initial_conditions(symbols,coordinates)

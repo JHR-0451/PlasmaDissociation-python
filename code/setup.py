@@ -66,6 +66,35 @@ def create_wigner(n, nmod, T, modes, freqs_cm, m, mom_num, rng):
     return dX, dY, dZ, Px, Py, Pz
 
 
+def rotate_reps(rep_coords, Px, Py, Pz, m, rng, output_file="rotations.csv"):
+    """O2: rigid, uniformly random rotation (on SO(3)) of each rep's positions and momenta about its centre of mass.
+
+    Same method as scripts/rotation_test/make_rotated_run.py (normalised 4-D Gaussian -> unit quaternion).
+    Internal geometry, kinetic energy and the angular-momentum magnitude are unchanged. Writes one quaternion
+    per rep to rotations.csv. Returns new rep_coords strings and rotated Px, Py, Pz arrays (n_atoms, n_reps).
+    """
+    m = np.asarray(m, dtype=float)
+    new_coords = []
+    Px, Py, Pz = Px.copy(), Py.copy(), Pz.copy()
+    with open(output_file, "w") as fr:
+        fr.write("rep,w,x,y,z\n")
+        for j, block in enumerate(rep_coords):
+            lines = [ln.split() for ln in block.strip().splitlines()]
+            sym = [p[0] for p in lines]
+            xyz = np.array([[float(v) for v in p[1:4]] for p in lines])
+            q = rng.standard_normal(4); w, x, y, z = q / np.linalg.norm(q)
+            R = np.array([[1 - 2 * (y * y + z * z), 2 * (x * y - z * w), 2 * (x * z + y * w)],
+                          [2 * (x * y + z * w), 1 - 2 * (x * x + z * z), 2 * (y * z - x * w)],
+                          [2 * (x * z - y * w), 2 * (y * z + x * w), 1 - 2 * (x * x + y * y)]])
+            com = (m[:, None] * xyz).sum(0) / m.sum()
+            xyz = (xyz - com) @ R.T + com
+            P = np.stack([Px[:, j], Py[:, j], Pz[:, j]], axis=1) @ R.T
+            Px[:, j], Py[:, j], Pz[:, j] = P[:, 0], P[:, 1], P[:, 2]
+            new_coords.append("".join(f"{s} {float(a)!r} {float(b)!r} {float(c)!r} \n" for s, (a, b, c) in zip(sym, xyz)))
+            fr.write(f"{j + 1},{w!r},{x!r},{y!r},{z!r}\n")
+    return new_coords, Px, Py, Pz
+
+
 def wigner_checks(dX, dY, dZ, Px, Py, Pz, m, T, freqs_cm, output_file="wigner_checks.txt"):
     """Write sample-mean KE and its expected value; harmonic PE needs the Hessian, so only KE is checked here."""
     w = np.asarray(freqs_cm, dtype=float) / 219474.6313632
@@ -292,18 +321,24 @@ if __name__ == "__main__":
     masses = init.setup_masses(symbols)
     # Initial-condition sampling. "Init_cond" absent or "classical" = original behaviour (unchanged code path).
     init_cond = inputs["Molecule_data"].get("Init_cond", "classical").lower()
-    seed = inputs["Molecule_data"].get("Seed")              # optional int; absent = unseeded, as before
+    seed = inputs["Molecule_data"].get("Seed")              # optional int
+    seed_source = "inputs.json"
+    if seed is None:                                        # O3: draw from OS entropy and log it, so runs are reproducible
+        seed = int(np.random.SeedSequence().entropy % 2**32)    # 32-bit: also valid for np.random.seed (classical)
+        seed_source = "generated (OS entropy)"
+    random_rotation = bool(inputs["Molecule_data"].get("Random_rotation", False))   # O2, default off
+    with open("seed_used.txt", "w") as fs:
+        fs.write(f"Init_cond {init_cond}\nSeed {seed} ({seed_source})\nRandom_rotation {random_rotation}\n")
     T_in = inputs["Molecule_data"]["Temp"]
     nrep = inputs["HPC"]["repeats"]
     if init_cond == "classical":
-        if seed is not None:
-            np.random.seed(int(seed))
+        np.random.seed(int(seed))
         Px, Py, Pz = create_geom(natoms,num_modes,T_in,modes,masses,nrep)
         momenta_checks(Px,Py,Pz,symbols,T_in)
         rep_coords = [opt_coords] * nrep
     elif init_cond == "wigner":
         freqs = [float(md['frequency']) for md in modes_raw]
-        rng = np.random.default_rng(None if seed is None else int(seed))
+        rng = np.random.default_rng(int(seed))
         dX, dY, dZ, Px, Py, Pz = create_wigner(natoms,num_modes,T_in,modes,freqs,masses,nrep,rng)
         wigner_checks(dX, dY, dZ, Px, Py, Pz, masses, T_in, freqs)
         eq_lines = [ln.split() for ln in opt_coords.strip().splitlines()]
@@ -315,6 +350,8 @@ if __name__ == "__main__":
             rep_coords.append("".join(f"{s} {float(x)!r} {float(y)!r} {float(z)!r} \n" for s, (x, y, z) in zip(eq_sym, xyz)))
     else:
         raise ValueError(f"Unknown Molecule_data.Init_cond: {init_cond!r} (use 'classical' or 'wigner')")
+    if random_rotation:
+        rep_coords, Px, Py, Pz = rotate_reps(rep_coords, Px, Py, Pz, masses, np.random.default_rng([int(seed), 1]))
     for j in range(nrep):
         with open('../repetitions/rep-'+str(j+1)+'/Geometry', 'w') as file:
             file.write(rep_coords[j])

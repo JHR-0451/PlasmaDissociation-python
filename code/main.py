@@ -152,7 +152,9 @@ def ground_state_prep(molecule1, molecule2):
     rep = os.path.basename(os.getcwd())                  # e.g. 'rep-17'
     rep_num = int(rep.split("-")[-1]) if rep.split("-")[-1].isdigit() else 0
     seed = cfg.get("Seed")
-    rng = np.random.default_rng(None if seed is None else [int(seed), rep_num])
+    if seed is None:                                     # O3: draw a seed from OS entropy and log it (gs_prep.out)
+        seed = int(np.random.SeedSequence().entropy % 2**63)
+    rng = np.random.default_rng([int(seed), rep_num])
     nsteps = int(rng.integers(nmin, nmax + 1))
     target_mult = molecule1.multiplicity
     t_start = molecule1.timestep
@@ -196,7 +198,11 @@ def main():
     # Check basic arguments
     fresh_start = not os.path.exists('output/xyz.all')   # GS prep only for a new trajectory, never on restart
 
-    molecule1, molecule2, startstep = initialize_simulation()
+    with open("../../inputs.json", "r") as f:
+        gs_enabled = json.load(f)["Propagation"].get("GS_prep", {}).get("Enabled", False)
+    # O1: with GS prep on a fresh start, skip the step-0 excited-state SCF (the prep runs its own SCF first and
+    # the switch runs a fresh one), so no discarded "stray" SCF is written to f.all.
+    molecule1, molecule2, startstep = initialize_simulation(run_scf=not (fresh_start and gs_enabled))
 
     if fresh_start:
         molecule1, molecule2 = ground_state_prep(molecule1, molecule2)

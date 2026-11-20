@@ -661,8 +661,11 @@ def find_timestep():
         print(f"Error: {e}")
         return 0
 
-def initialize_simulation():
-    """Check if restart is possible and determine the start step."""
+def initialize_simulation(run_scf=True):
+    """Check if restart is possible and determine the start step.
+
+    run_scf=False (fresh start only) skips the step-0 SCF; used when the ground-state prep runs its own SCF
+    first, so the excited-state SCF here would be discarded. Default True = original behaviour."""
     # Check if the result files exist
     result_files_exist = all(os.path.exists(f'output/{file}') for file in ['dissociation.out', 'fragments.out'])
 
@@ -682,7 +685,8 @@ def initialize_simulation():
         molecule1 = initialize_structure()
         num_atoms = len(molecule1.symbols)
         molecule2 = create_empty_molecule(num_atoms)
-        molecule1 = elec.run_elec_structure(molecule1, Guess=False)
-        
+        if run_scf:
+            molecule1 = elec.run_elec_structure(molecule1, Guess=False)
+
 
     return molecule1, molecule2, start_step

@@ -91,6 +91,17 @@ def log_scf_retry(step, state, guess, err_type, err_msg, outcome):
         f.write(f"{step}\t{state}\t{guess}\t{err_type}\t{err_msg}\t{outcome}\n")
 
 
+def failure_reason(exc):
+    """G0: short reason for a failed Q-Chem attempt (for scf_retries.out): the most specific line of the output."""
+    text = str(getattr(exc, "full_output", "") or exc)
+    lines = [l.strip() for l in text.splitlines() if l.strip()]
+    for key in ("exception", "failed", "error"):           # most specific first
+        hit = next((l for l in reversed(lines) if key in l.lower()), None)
+        if hit:
+            return hit[:150].replace("\t", " ")
+    return lines[0][:150].replace("\t", " ") if lines else ""
+
+
 def save_failed_output(step, state, full_output, nlines=80):
     """G0: keep the last lines of a failed Q-Chem output, to see why the SCF failed."""
     folder = os.path.join("output", "scf_failures" + getattr(gv, "scf_log_tag", ""))
@@ -378,9 +389,7 @@ def run_qchem(molecule, Guess=True):
         except Exception as e1:
             # G0: log why the first SCF attempt failed
             step = int(round(molecule.timestep / gv.timestep))
-            msg = str(e1).strip().splitlines()
-            log_scf_retry(step, state, Guess, type(e1).__name__,
-                          msg[0][:150].replace("\t", " ") if msg else "", "attempt1_failed")
+            log_scf_retry(step, state, Guess, type(e1).__name__, failure_reason(e1), "attempt1_failed")
             if isinstance(e1, errors.OutputError):
                 save_failed_output(step, state, e1.full_output)
 
@@ -400,7 +409,7 @@ def run_qchem(molecule, Guess=True):
                     f_all.write(output)
                 log_scf_retry(step, state, False, "-", "-", "retry_ok")
             except errors.OutputError as e:
-                log_scf_retry(step, state, False, type(e).__name__, "-", "retry_failed_exit")
+                log_scf_retry(step, state, False, type(e).__name__, failure_reason(e), "retry_failed_exit")
                 with open("ERROR", "w") as file:    
                     file.write("Error occurred during QChem job. Help.\n" + os.getcwd())
                     file.write(e.full_output)

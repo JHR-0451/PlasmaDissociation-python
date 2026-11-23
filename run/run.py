@@ -237,7 +237,7 @@ if __name__=="__main__":
                     f.write('export PATH="$PATH:$QC/exe:$QC/bin"\n')
                     f.write("export QCSCRATCH=" + EXDIR1 + "/setup/tmp \n")
                 f.write("cd " + EXDIR1 + "/setup \n")
-                f.write("python /users/"+getpass.getuser()+"/PlasmaDissociation-python/code/setup.py")
+                f.write("python "+os.path.dirname(os.path.dirname(os.path.abspath(__file__)))+"/code/setup.py")
             setup_command = ['sbatch', '--parsable', file2]
             setup_job_id = subprocess.check_output(setup_command).strip().decode('utf-8')
             print(setup_job_id)
@@ -269,7 +269,7 @@ if __name__=="__main__":
             f.write('export PATH="$PATH:$QC/exe:$QC/bin"\n')
             f.write("export QCSCRATCH="+EXDIR1+"/repetitions/rep-$SLURM_ARRAY_TASK_ID \n")  
         f.write("cd "+EXDIR1+"/repetitions/rep-$SLURM_ARRAY_TASK_ID \n")
-        f.write("python /users/"+getpass.getuser()+"/PlasmaDissociation-python/code/main.py")
+        f.write("python "+os.path.dirname(os.path.dirname(os.path.abspath(__file__)))+"/code/main.py")
         f.close()
         if inputs["Molecule_data"]["Geom_flg"] in ["PubChem", "NIST", "Initial"]:
             plasma_command = ['sbatch', '--dependency=afterok:' + setup_job_id, file1]

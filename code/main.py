@@ -168,6 +168,7 @@ def ground_state_prep(molecule1, molecule2):
                   f"steps {nsteps} (drawn from [{nmin}, {nmax}]), timestep {gv.timestep} a.u.\n")
         log.write("step  time_fs  E_scf(Ha)  KE(Ha)  E_total(Ha)\n")
         molecule1.multiplicity = gs_mult
+        gv.scf_log_tag = "_groundstate"                  # G0: prep-phase SCF retries -> output/scf_retries_groundstate.out
         molecule1 = elec.run_elec_structure(molecule1, Guess=False)
         log.write(f"{0} {0.0:.3f} {molecule1.scf_energy[0]:.10f} {ke(molecule1):.10f} "
                   f"{molecule1.scf_energy[0] + ke(molecule1):.10f}\n")
@@ -182,6 +183,7 @@ def ground_state_prep(molecule1, molecule2):
         # switch to the excited-state dynamics
         molecule1.multiplicity = target_mult
         molecule1.timestep = t_start
+        gv.scf_log_tag = ""                              # G0: switch SCF and trajectory -> output/scf_retries.out
         molecule1 = elec.run_elec_structure(molecule1, Guess=False)
         log.write(f"switch: multiplicity {target_mult}, new SCF E = {molecule1.scf_energy[0]:.10f} Ha, "
                   f"KE = {ke(molecule1):.10f} Ha; clock reset to {t_start}\n")

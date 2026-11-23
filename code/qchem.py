@@ -77,6 +77,28 @@ def file_contains_string(file_path, search_string):
                 return True
     return False
 
+
+def log_scf_retry(step, state, guess, err_type, err_msg, outcome):
+    """G0: one line per SCF retry event in output/scf_retries<tag>.out (cwd = rep folder).
+    tag = gv.scf_log_tag: "" for the trajectory, "_groundstate" during the GS-prep phase (set in main.py)."""
+    tag = getattr(gv, "scf_log_tag", "")
+    os.makedirs("output", exist_ok=True)
+    path = os.path.join("output", f"scf_retries{tag}.out")
+    new = not os.path.exists(path)
+    with open(path, "a") as f:
+        if new:
+            f.write("step\tstate\tprev_orbitals_guess\terror_type\terror_message\toutcome\n")
+        f.write(f"{step}\t{state}\t{guess}\t{err_type}\t{err_msg}\t{outcome}\n")
+
+
+def save_failed_output(step, state, full_output, nlines=80):
+    """G0: keep the last lines of a failed Q-Chem output, to see why the SCF failed."""
+    folder = os.path.join("output", "scf_failures" + getattr(gv, "scf_log_tag", ""))
+    os.makedirs(folder, exist_ok=True)
+    tail = "\n".join(str(full_output).splitlines()[-nlines:])
+    with open(os.path.join(folder, f"step{step:04d}_state{state}.out"), "w") as f:
+        f.write(tail + "\n")
+
 def create_qchem_nac_input(molecule, scf_algorithm="DIIS", Guess=True):
     """
     Generates a QChem input configuration for simultaneous force and NAC calculations.
@@ -353,11 +375,16 @@ def run_qchem(molecule, Guess=True):
             # Append f.out content to f.all
             with open("f.all", "a") as f_all:
                 f_all.write(output)
-        except:
+        except Exception as e1:
+            # G0: log why the first SCF attempt failed
+            step = int(round(molecule.timestep / gv.timestep))
+            msg = str(e1).strip().splitlines()
+            log_scf_retry(step, state, Guess, type(e1).__name__,
+                          msg[0][:150].replace("\t", " ") if msg else "", "attempt1_failed")
+            if isinstance(e1, errors.OutputError):
+                save_failed_output(step, state, e1.full_output)
 
-            # # print('Using DIIS_GDM algorithm')
-            # # Retry with a different setup
-            
+            # Retry with DIIS_GDM from a fresh SAD guess (unchanged behaviour)
             qc_inp=create_qchemforces_input(molecule, scf_algorithm="DIIS_GDM", Guess=False,excited_state=state)
             try:
                 qtime2= time.time()
@@ -371,7 +398,9 @@ def run_qchem(molecule, Guess=True):
                 molecule.time[2] += qtime2-qtime1
                 with open("f.all", "a") as f_all:
                     f_all.write(output)
+                log_scf_retry(step, state, False, "-", "-", "retry_ok")
             except errors.OutputError as e:
+                log_scf_retry(step, state, False, type(e).__name__, "-", "retry_failed_exit")
                 with open("ERROR", "w") as file:    
                     file.write("Error occurred during QChem job. Help.\n" + os.getcwd())
                     file.write(e.full_output)

@@ -74,3 +74,23 @@ README (new input options; setting up and running on the Leeds HPC) and this fil
 ground-state pre-equilibration (0–400 steps), 10 repeats, fixed seeds. These are the settings of our CF4
 Wigner + GS-prep run, with the run-folder name and number of repeats changed. It replaces the previous
 methane example (still available in the history of `RBrook318/PlasmaDissociation-python`).
+
+## 13. SCF retry logging (November 2026) – `code/qchem.py`, `code/main.py`
+When the first SCF attempt of a step fails and the code retries (DIIS_GDM, as before), every attempt is
+recorded in `output/scf_retries.out`: step, state, whether the previous step's orbitals were the guess,
+error type, the Q-Chem failure reason (e.g. "SCF failed to converge") and the outcome (`attempt1_failed`,
+`retry_ok`, `retry_failed_exit`). The last 80 lines of each failed Q-Chem output are kept in
+`output/scf_failures/`. During ground-state pre-equilibration the same logs are written to
+`output/scf_retries_groundstate.out` and `output/scf_failures_groundstate/`. The retry itself is
+unchanged. A restarted repeat appends to the existing log, so entries can repeat.
+
+## 14. `run/run.py` uses the code of its own copy (November 2026) – `run/run.py`
+The generated Slurm scripts (Aire and Calder) call `setup.py` and `main.py` from the `code/` folder next
+to the `run/` folder that `run.py` is in, instead of a fixed `~/PlasmaDissociation-python` path. Several
+copies of the repository (e.g. a release and a development copy) can then be used side by side.
+
+## 15. Housekeeping (November 2026)
+Compiled Python caches (`__pycache__/`) are no longer tracked and are listed in `.gitignore`. Branch name
+in the documentation updated to `jhr-developments-release`.
+
+Note (unchanged behaviour): a new trajectory writes `Tot_timesteps` + 3 frames to `output/xyz.all`.

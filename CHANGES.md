@@ -1,4 +1,4 @@
-# Changes in this fork (branch `jhr-developments`)
+# Changes in this fork (branch `jhr-developments-release`)
 
 Changes by Jonathan H Reid (University of Leeds), 2026, to the original code by R. Brook.
 Based on `RBrook318/PlasmaDissociation-python` `main` at `fbae5d8`. One entry per commit, oldest first.

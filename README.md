@@ -4,7 +4,7 @@ Fork of [RBrook318/PlasmaDissociation-python](https://github.com/RBrook318/Plasm
 Python code for simulating molecular dissociation after electron impact, with forces from Q-Chem (or PySCF).
 Runs are configured with `run/inputs.json` and submitted with `run/run.py`.
 Original code by R. Brook; the changes in this fork are by Jonathan H Reid (University of Leeds), 2026.
-This fork (branch `jhr-developments`) adds the optional input options below; see `CHANGES.md` for the full
+This fork (branch `jhr-developments-release`) adds the optional input options below; see `CHANGES.md` for the full
 list of changes.
 
 ## Additional input options
@@ -83,7 +83,7 @@ have not been checked here.
    call `/users/<user>/PlasmaDissociation-python/code/setup.py` and `code/main.py`, so a copy anywhere
    else is not used.
    ```bash
-   git clone -b jhr-developments https://github.com/JHR-0451/PlasmaDissociation-python.git ~/PlasmaDissociation-python
+   git clone -b jhr-developments-release https://github.com/JHR-0451/PlasmaDissociation-python.git ~/PlasmaDissociation-python
    ```
    If that folder already holds another copy of the code, rename it first (e.g.
    `mv ~/PlasmaDissociation-python ~/PlasmaDissociation-python-old`), because only one copy can be used at a time.
